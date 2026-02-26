@@ -381,51 +381,10 @@ fn addLinuxAppResources(
         "share/nautilus-python/extensions/ghostty.py",
     ).step);
 
-    // Various icons that our application can use, including the icon
-    // that will be used for the desktop.
+    // App icon - single unified icon for all platforms
     try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/16.png"),
-        "share/icons/hicolor/16x16/apps/com.mitchellh.ghostty.png",
-    ).step);
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/32.png"),
-        "share/icons/hicolor/32x32/apps/com.mitchellh.ghostty.png",
-    ).step);
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/128.png"),
-        "share/icons/hicolor/128x128/apps/com.mitchellh.ghostty.png",
-    ).step);
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/256.png"),
-        "share/icons/hicolor/256x256/apps/com.mitchellh.ghostty.png",
-    ).step);
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/512.png"),
+        b.path("images/app-icon.png"),
         "share/icons/hicolor/512x512/apps/com.mitchellh.ghostty.png",
-    ).step);
-    // Flatpaks only support icons up to 512x512.
-    if (!cfg.flatpak) {
-        try steps.append(b.allocator, &b.addInstallFile(
-            b.path("images/gnome/1024.png"),
-            "share/icons/hicolor/1024x1024/apps/com.mitchellh.ghostty.png",
-        ).step);
-    }
-
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/32.png"),
-        "share/icons/hicolor/16x16@2/apps/com.mitchellh.ghostty.png",
-    ).step);
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/64.png"),
-        "share/icons/hicolor/32x32@2/apps/com.mitchellh.ghostty.png",
-    ).step);
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/256.png"),
-        "share/icons/hicolor/128x128@2/apps/com.mitchellh.ghostty.png",
-    ).step);
-    try steps.append(b.allocator, &b.addInstallFile(
-        b.path("images/gnome/512.png"),
-        "share/icons/hicolor/256x256@2/apps/com.mitchellh.ghostty.png",
     ).step);
 }
 

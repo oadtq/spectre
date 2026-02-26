@@ -19,11 +19,8 @@ pub const ui_path = "src/apprt/gtk/ui";
 /// The path to the CSS files.
 pub const css_path = "src/apprt/gtk/css";
 
-/// The possible icon sizes we'll embed into the gresource file.
-/// If any size doesn't exist then it will be an error. We could
-/// infer this completely from available files but we wouldn't be
-/// able to error when they don't exist that way.
-pub const icon_sizes: []const comptime_int = &.{ 16, 32, 128, 256, 512, 1024 };
+// Single unified app icon - used for all sizes
+pub const icon_source = "images/app-icon.png";
 
 /// The blueprint files that we will embed into the gresource file.
 /// We can't look these up at runtime [easily] because we require the
@@ -73,14 +70,11 @@ pub const Blueprint = struct {
 /// The list of filepaths that we depend on. Used for the build
 /// system to have proper caching.
 pub const file_inputs = deps: {
-    const total = (icon_sizes.len * 2) + blueprints.len + css.len;
+    const total = 1 + blueprints.len + css.len;
     var deps: [total][]const u8 = undefined;
     var index: usize = 0;
-    for (icon_sizes) |size| {
-        deps[index] = std.fmt.comptimePrint("images/gnome/{d}.png", .{size});
-        deps[index + 1] = std.fmt.comptimePrint("images/gnome/{d}.png", .{size * 2});
-        index += 2;
-    }
+    deps[index] = icon_source;
+    index += 1;
     for (blueprints) |bp| {
         deps[index] = std.fmt.comptimePrint("{s}/{d}.{d}/{s}.blp", .{
             ui_path,
@@ -166,9 +160,7 @@ pub fn main() !void {
     try stdout.end();
 }
 
-/// Generate the icon resources. This works by looking up all the icons
-/// specified by `icon_sizes` in `images/icons/`. They are asserted to exist
-/// by trying to access the file.
+/// Generate the icon resources using the single unified app icon.
 fn genIcons(writer: *std.Io.Writer) !void {
     try writer.print(
         \\  <gresource prefix="{s}/icons">
@@ -176,32 +168,18 @@ fn genIcons(writer: *std.Io.Writer) !void {
     , .{prefix});
 
     const cwd = std.fs.cwd();
-    inline for (icon_sizes) |size| {
-        // 1x
-        {
-            const alias = std.fmt.comptimePrint("{d}x{d}", .{ size, size });
-            const source = std.fmt.comptimePrint("images/gnome/{d}.png", .{size});
-            try cwd.access(source, .{});
-            try writer.print(
-                \\    <file alias="{s}/apps/{s}.png">{s}</file>
-                \\
-            ,
-                .{ alias, app_id, source },
-            );
-        }
+    try cwd.access(icon_source, .{});
 
-        // 2x
-        {
-            const alias = std.fmt.comptimePrint("{d}x{d}@2", .{ size, size });
-            const source = std.fmt.comptimePrint("images/gnome/{d}.png", .{size * 2});
-            try cwd.access(source, .{});
-            try writer.print(
-                \\    <file alias="{s}/apps/{s}.png">{s}</file>
-                \\
-            ,
-                .{ alias, app_id, source },
-            );
-        }
+    // Use single icon for all standard sizes
+    const sizes = .{ 16, 32, 128, 256, 512 };
+    inline for (sizes) |size| {
+        const alias = std.fmt.comptimePrint("{d}x{d}", .{ size, size });
+        try writer.print(
+            \\    <file alias="{s}/apps/{s}.png">{s}</file>
+            \\
+        ,
+            .{ alias, app_id, icon_source },
+        );
     }
 
     try writer.writeAll(
