@@ -56,9 +56,61 @@ Instead of macOS native `NSWindowTabGroup` (one `NSWindow` per tab), vertical-ta
 - Splits within each tab
 - Proper cleanup when last tab closes (closes window)
 
+## Shell Commands (`mkgroup` and friends)
+
+The `mkgroup` command lets users create a tab group from the current working directory. It works by sending an OSC 0 (set-title) escape sequence with a special `ghostty-cmd:` prefix that the app intercepts in `Ghostty.App.swift`:
+
+```sh
+mkgroup() {
+  printf '\033]0;ghostty-cmd:create-tab-group\007'
+}
+```
+
+This command is added to the existing shell integration scripts so it's automatically available when shell integration is active:
+
+- Bash: `src/shell-integration/bash/ghostty.bash`
+- Zsh: `src/shell-integration/zsh/ghostty-integration`
+- Fish: `src/shell-integration/fish/vendor_conf.d/ghostty-shell-integration.fish`
+
+Shell integration is auto-injected by the app at runtime (no rc file writes needed). Any new shell commands should live in those scripts. Users who disable shell integration would need to add the function manually — that's acceptable and expected.
+
 ## Known Limitations
 
 - Sidebar width is fixed (not user-resizable yet)
 - No drag-to-reorder tabs in the sidebar
 - No undo/redo for vertical tab operations
 - Window restoration not implemented for vertical-tabs mode
+
+## Session Persistence — Investigation Notes
+
+We attempted to implement session persistence (restore tabs/groups/splits across restarts) for vertical-tabs mode. The implementation was complete at the code level but could not be verified due to a macOS platform constraint. The code was reverted. Notes below for future attempts.
+
+### What was implemented
+
+- `VerticalTabSnapshot`, `VerticalTabGroupSnapshot`, `VerticalSidebarItemSnapshot`, `VerticalTabRestorableState` — `Codable` snapshots of the full `VerticalTabModel` state (tabs, groups, split trees, titles, colors, PWDs, selected tab)
+- `TerminalWindowRestoration.restoreWindow` extended to handle a new `"VerticalTabsWindowRestoration"` window identifier, decoding `VerticalTabRestorableState` and rebuilding the model
+- `TerminalController.window(_:willEncodeRestorableState:)` branched to encode `VerticalTabRestorableState` in vertical-tabs mode
+- `TerminalController.windowDidLoad` sets a distinct `window.identifier` for vertical-tabs windows, and guards `addTab(surfaceTree:)` so a restored model isn't overwritten with a blank tab
+- `VerticalTabModel.init(from: VerticalTabRestorableState)` to rebuild the model from a snapshot
+- `AppDelegate.ghosttyConfigDidChange` auto-enables `NSQuitAlwaysKeepsWindows` when `macos-titlebar-style = vertical-tabs` so users don't need `window-save-state = always`
+
+### Why it didn't work
+
+macOS's `NSWindowRestoration` pipeline requires the app to be **properly code-signed with a Team ID**. The debug build produced by `zig build run` is ad-hoc signed (`Signature=adhoc`, `TeamIdentifier=not set`), and macOS silently skips writing the saved state directory (`~/Library/Saved Application State/<bundle-id>.savedState`) for ad-hoc signed apps.
+
+Confirmed findings:
+- `NSQuitAlwaysKeepsWindows = 1` was correctly set in `UserDefaults` for `com.oadtq.spectre.debug`
+- Even after `defaults write NSGlobalDomain NSQuitAlwaysKeepsWindows -bool true`, no savedState directory was created after Cmd+Q
+- The existing classic-tab restoration (`TerminalWindowRestoration`) has the same constraint and would fail identically in a debug build
+
+### To resume this work
+
+The implementation approach is sound. To test and ship it:
+1. Build with a proper Apple Developer Team ID (production or development certificate, not ad-hoc)
+2. Verify `~/Library/Saved Application State/<bundle-id>.savedState` is created after Cmd+Q
+3. Confirm `window(_:willEncodeRestorableState:)` is called by checking logs
+4. Re-apply the changes to these files:
+   - `macos/Sources/Features/Terminal/TerminalRestorable.swift` — add snapshot types + extend `restoreWindow`
+   - `macos/Sources/Features/Terminal/VerticalTabModel.swift` — add `init(from: VerticalTabRestorableState)`
+   - `macos/Sources/Features/Terminal/TerminalController.swift` — branch encode, set identifier, guard `addTab`, add convenience init
+   - `macos/Sources/App/macOS/AppDelegate.swift` — auto-enable `NSQuitAlwaysKeepsWindows` for vertical-tabs mode

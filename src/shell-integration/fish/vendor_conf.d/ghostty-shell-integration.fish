@@ -202,6 +202,11 @@ function __ghostty_setup --on-event fish_prompt -d "Setup ghostty integration"
         end
     end
 
+    # Create a new tab group from the current working directory.
+    function mkgroup -d "Create a new tab group"
+        printf '\033]0;ghostty-cmd:create-tab-group\007'
+    end
+
     # Setup prompt marking
     function __ghostty_mark_prompt_start --on-event fish_prompt --on-event fish_posterror
         # If we never got the output end event, then we need to send it now.

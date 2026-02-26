@@ -26,12 +26,25 @@ struct VerticalTabSidebarView: View {
             VStack(spacing: 0) {
                 // Tab list
                 ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(model.items) { item in
-                            switch item {
-                            case .tab(let tab):
-                                tabRow(for: tab)
-                            case .group(let group):
+                    let groups = model.items.compactMap { item -> VerticalTabModel.TabGroup? in
+                        if case .group(let g) = item { return g }
+                        return nil
+                    }
+                    let independentTabs = model.items.compactMap { item -> VerticalTabModel.Tab? in
+                        if case .tab(let t) = item { return t }
+                        return nil
+                    }
+
+                    LazyVStack(alignment: .leading, spacing: 6) {
+                        if !groups.isEmpty {
+                            Text("Projects")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.top, 4)
+                                .padding(.bottom, 2)
+                            
+                            ForEach(groups) { group in
                                 VerticalTabGroupRow(
                                     group: group,
                                     selectedTabId: model.selectedTabId,
@@ -44,9 +57,23 @@ struct VerticalTabSidebarView: View {
                                 )
                             }
                         }
+                        
+                        if !independentTabs.isEmpty {
+                            Text("Terminals")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.top, groups.isEmpty ? 4 : 16)
+                                .padding(.bottom, 2)
+                            
+                            ForEach(independentTabs) { tab in
+                                tabRow(for: tab)
+                            }
+                        }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.top, 8)
+                    .padding(.top, 12)
+                    .padding(.bottom, 12)
                 }
 
                 Spacer(minLength: 0)
@@ -55,12 +82,12 @@ struct VerticalTabSidebarView: View {
                 VStack(spacing: 2) {
                     SidebarActionButton(
                         icon: "plus",
-                        label: "New Tab",
+                        label: "New Terminal",
                         action: onNewTab
                     )
                     SidebarActionButton(
                         icon: "folder.badge.plus",
-                        label: "New Group",
+                        label: "New Project",
                         action: onNewGroup
                     )
                 }
@@ -87,11 +114,11 @@ struct VerticalTabSidebarView: View {
             onClose: { onCloseTab(tab.id) }
         )
         .contextMenu {
-            Button("Move to New Group") {
+            Button("Move to New Project") {
                 model.moveTabToNewGroup(tabId: tab.id)
             }
             if !model.groupList.isEmpty {
-                Menu("Move to Group") {
+                Menu("Move to Project") {
                     ForEach(model.groupList) { g in
                         Button(g.title) {
                             model.moveTabToGroup(tabId: tab.id, groupId: g.id)
@@ -113,15 +140,15 @@ private struct SidebarActionButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                 Text(label)
-                    .font(.system(size: 12))
+                    .font(.system(size: 13))
                 Spacer()
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isHovering ? Color.white.opacity(0.07) : Color.clear)
@@ -146,23 +173,23 @@ struct VerticalTabGroupRow: View {
     let groupList: [VerticalTabModel.TabGroup]
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             Button(action: onToggleExpand) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Image(systemName: group.isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.secondary)
-                        .frame(width: 12)
+                        .frame(width: 14)
 
                     Text(group.title)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
 
                     Spacer(minLength: 0)
                 }
-                .padding(.vertical, 4)
-                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 6)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -186,11 +213,11 @@ struct VerticalTabGroupRow: View {
 
     @ViewBuilder
     private func tabContextMenu(for tab: VerticalTabModel.Tab) -> some View {
-        Button("Move to New Group") {
+        Button("Move to New Project") {
             onMoveToNewGroup(tab.id)
         }
         if !groupList.isEmpty {
-            Menu("Move to Group") {
+            Menu("Move to Project") {
                 ForEach(groupList) { g in
                     if g.id != group.id {
                         Button(g.title) {
@@ -213,39 +240,41 @@ struct VerticalTabRow: View {
     @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             // Tab color indicator
             if let color = tab.tabColor.displayColor {
                 Circle()
                     .fill(Color(nsColor: color))
-                    .frame(width: 8, height: 8)
+                    .frame(width: 10, height: 10)
             } else {
                 Circle()
                     .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
-                    .frame(width: 8, height: 8)
+                    .frame(width: 10, height: 10)
             }
 
             // Tab title
             Text(tabDisplayTitle)
-                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
                 .lineLimit(1)
                 .truncationMode(.tail)
+                // Prevents SwiftUI from completely discarding and recreating the view 
+                // when tracking ID or view state shifts dynamically (the "splash effect")
+                .id(tab.id.uuidString)
 
             Spacer(minLength: 0)
 
             // Close button (visible on hover or when selected)
-            if isHovering || isSelected {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 16, height: 16)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
             }
+            .buttonStyle(.plain)
+            .frame(width: 18, height: 18)
+            .opacity(isHovering || isSelected ? 1 : 0)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isSelected

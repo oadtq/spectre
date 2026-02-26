@@ -258,6 +258,11 @@ function __ghostty_preexec() {
   _ghostty_executing=1
 }
 
+# Create a new tab group from the current working directory.
+function mkgroup() {
+  builtin printf '\033]0;ghostty-cmd:create-tab-group\007'
+}
+
 if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )); then
   __ghostty_preexec_hook() {
     builtin local cmd

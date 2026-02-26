@@ -343,6 +343,9 @@ _ghostty_deferred_init() {
       }
     fi
 
+    # Create a new tab group from the current working directory.
+    mkgroup() { builtin printf '\033]0;ghostty-cmd:create-tab-group\007'; }
+
     # Some zsh users manually run `source ~/.zshrc` in order to apply rc file
     # changes to the current shell. This is a terrible practice that breaks many
     # things, including our shell integration. For example, Oh My Zsh and Prezto

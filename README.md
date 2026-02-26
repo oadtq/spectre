@@ -1,8 +1,7 @@
 # Spectre
 
-A MacOS terminal emulator for managing your CLI Agents easily across projects.   
+A MacOS terminal emulator for managing your CLI Agents easily across projects.  
 [About](#about) · [Building](#building) · [Development](#development) · [Distribution](#distribution) · [Contributing](#contributing)
-
 
 ## About
 
@@ -159,7 +158,8 @@ zig build -Doptimize=ReleaseFast
 
 ```bash
 # Install to system (after building)
-# On macOS, drag the built app to /Applications
+# On macOS, drag the built app to /Applications, or run
+cp -R zig-out/Ghostty.app /Applications/
 # On Linux, the binary can be installed to ~/.local/bin
 
 # Or use the install step if available
