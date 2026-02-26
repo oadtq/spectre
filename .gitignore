@@ -27,3 +27,7 @@ glad.zip
 /spectre.qcow2
 
 vgcore.*
+
+# Build artifacts
+GhosttyKit.xcframework/
+*.xcframework/
