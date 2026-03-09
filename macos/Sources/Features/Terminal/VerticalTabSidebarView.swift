@@ -242,7 +242,7 @@ struct VerticalTabRow: View {
     var body: some View {
         HStack(spacing: 8) {
             // Tab title
-            Text(tabDisplayTitle)
+            Text(tab.title)
                 .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -251,14 +251,6 @@ struct VerticalTabRow: View {
                 .id(tab.id.uuidString)
 
             Spacer(minLength: 0)
-
-            // Bell indicator for background tabs
-            if tab.hasBell {
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.orange)
-                    .accessibilityLabel("Notification")
-            }
 
             // Close button (visible on hover or when selected)
             Button(action: onClose) {
@@ -284,16 +276,7 @@ struct VerticalTabRow: View {
             isHovering = hovering
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Tab: \(tabDisplayTitle)")
+        .accessibilityLabel("Tab: \(tab.title)")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-    }
-
-    private var tabDisplayTitle: String {
-        if let pwd = tab.pwd {
-            let url = URL(fileURLWithPath: pwd)
-            let lastComponent = url.lastPathComponent
-            return lastComponent.isEmpty ? "Home" : lastComponent
-        }
-        return tab.title
     }
 }

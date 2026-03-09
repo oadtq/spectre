@@ -75,10 +75,15 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// the saved tree state.
     private var isRestoringSurfaceTreeFromModel: Bool = false
 
+    /// When non-nil, the controller was created from a restored vertical tab model
+    /// and windowDidLoad should use it instead of creating a fresh one.
+    private var restoredVerticalTabModel: VerticalTabModel?
+
     init(_ ghostty: Ghostty.App,
          withBaseConfig base: Ghostty.SurfaceConfiguration? = nil,
          withSurfaceTree tree: SplitTree<Ghostty.SurfaceView>? = nil,
-         parent: NSWindow? = nil
+         parent: NSWindow? = nil,
+         restoredVerticalTabModel: VerticalTabModel? = nil
     ) {
         // The window we manage is not restorable if we've specified a command
         // to execute. We do this because the restored window is meaningless at the
@@ -92,7 +97,10 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         // Check if we're in vertical-tabs mode
         self.isVerticalTabMode = ghostty.config.macosTitlebarStyle == "vertical-tabs"
-        if isVerticalTabMode {
+        if let restored = restoredVerticalTabModel {
+            self.verticalTabModel = restored
+            self.restoredVerticalTabModel = restored
+        } else if isVerticalTabMode {
             self.verticalTabModel = VerticalTabModel()
         }
 
@@ -157,12 +165,6 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             self,
             selector: #selector(onCreateTabGroup),
             name: .ghosttyCreateTabGroup,
-            object: nil
-        )
-        center.addObserver(
-            self,
-            selector: #selector(onBellDidRing(_:)),
-            name: .ghosttyBellDidRing,
             object: nil
         )
     }
@@ -1072,7 +1074,11 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         window.isRestorable = restorable
         if restorable {
             window.restorationClass = TerminalWindowRestoration.self
-            window.identifier = .init(String(describing: TerminalWindowRestoration.self))
+            if isVerticalTabMode {
+                window.identifier = TerminalWindowRestoration.verticalTabsIdentifier
+            } else {
+                window.identifier = .init(String(describing: TerminalWindowRestoration.self))
+            }
         }
 
         // If we have only a single surface (no splits) and there is a default size then
@@ -1086,8 +1092,14 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // Initialize our content view to the SwiftUI root
         if isVerticalTabMode, let verticalTabModel {
             // In vertical-tabs mode, we set up a sidebar + terminal layout.
-            // Register the initial surface tree as the first tab.
-            verticalTabModel.addTab(surfaceTree: surfaceTree)
+            // If we have a restored model, use it directly; otherwise register
+            // the initial surface tree as the first tab.
+            if restoredVerticalTabModel != nil {
+                // Model already populated from restoration — don't add a new tab.
+                restoredVerticalTabModel = nil
+            } else {
+                verticalTabModel.addTab(surfaceTree: surfaceTree)
+            }
 
             let terminalContainer = TerminalViewContainer(
                 ghostty: self.ghostty,
@@ -1306,8 +1318,15 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     // Called when the window will be encoded. We handle the data encoding here in the
     // window controller.
     func window(_ window: NSWindow, willEncodeRestorableState state: NSCoder) {
-        let data = TerminalRestorableState(from: self)
-        data.encode(with: state)
+        if isVerticalTabMode, verticalTabModel != nil {
+            // Save the current tab's state before encoding
+            saveCurrentVerticalTabState()
+            let data = VerticalTabRestorableState(from: self)
+            data.encode(with: state)
+        } else {
+            let data = TerminalRestorableState(from: self)
+            data.encode(with: state)
+        }
     }
 
     // MARK: First Responder
@@ -1705,21 +1724,6 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         verticalTabModel.moveTabToNewGroup(tabId: selectedId, basePath: basePath)
     }
 
-    @objc private func onBellDidRing(_ notification: SwiftUI.Notification) {
-        guard isVerticalTabMode, let verticalTabModel else { return }
-        guard let surfaceView = notification.object as? Ghostty.SurfaceView else { return }
-
-        // Find which vertical tab contains this surface and mark it
-        for tab in verticalTabModel.tabs {
-            if tab.surfaceTree.contains(surfaceView) {
-                // Skip the currently selected tab — user is already looking at it
-                if tab.id == verticalTabModel.selectedTabId { return }
-                verticalTabModel.updateBell(for: tab.id, isActive: true)
-                return
-            }
-        }
-    }
-
     @objc private func onResetWindowSize(notification: SwiftUI.Notification) {
         guard let target = notification.object as? Ghostty.SurfaceView else { return }
         guard surfaceTree.contains(target) else { return }
@@ -1841,9 +1845,6 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         // Save current tab state
         saveCurrentVerticalTabState()
-
-        // Clear bell indicator on the tab we're switching to
-        verticalTabModel.updateBell(for: newId, isActive: false)
 
         // Switch to the new tab's surface tree
         isRestoringSurfaceTreeFromModel = true

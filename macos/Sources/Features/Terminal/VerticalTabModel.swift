@@ -11,7 +11,6 @@ class VerticalTabModel: ObservableObject {
         let id: UUID
         var title: String
         var tabColor: TerminalTabColor
-        var hasBell: Bool
         var surfaceTree: SplitTree<Ghostty.SurfaceView>
         var pwd: String?
         /// The focused surface within this tab's split tree.
@@ -21,7 +20,6 @@ class VerticalTabModel: ObservableObject {
             id: UUID = UUID(),
             title: String = "Spectre",
             tabColor: TerminalTabColor = .none,
-            hasBell: Bool = false,
             surfaceTree: SplitTree<Ghostty.SurfaceView>,
             pwd: String? = nil,
             focusedSurface: Ghostty.SurfaceView? = nil
@@ -29,7 +27,6 @@ class VerticalTabModel: ObservableObject {
             self.id = id
             self.title = title
             self.tabColor = tabColor
-            self.hasBell = hasBell
             self.surfaceTree = surfaceTree
             self.pwd = pwd
             self.focusedSurface = focusedSurface
@@ -311,12 +308,6 @@ class VerticalTabModel: ObservableObject {
     /// Update the tab color for a specific tab.
     func updateTabColor(for tabId: UUID, color: TerminalTabColor) {
         updateTab(tabId) { $0.tabColor = color }
-    }
-
-    /// Update the bell indicator state for a specific tab.
-    func updateBell(for tabId: UUID, isActive: Bool) {
-        guard tabs.first(where: { $0.id == tabId })?.hasBell != isActive else { return }
-        updateTab(tabId) { $0.hasBell = isActive }
     }
 
     /// Update the overall terminal background color for the sidebar.

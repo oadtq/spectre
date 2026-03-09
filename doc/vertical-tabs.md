@@ -76,18 +76,11 @@ Shell integration is auto-injected by the app at runtime (no rc file writes need
 
 ## Bell Notification
 
-Vertical tabs use a lightweight notification system for bell events, separate from the base controller's bell-in-title mechanism used by horizontal tabs.
+Vertical tabs use the same bell-in-title mechanism as horizontal tabs via `BaseTerminalController.computeTitle`. When a bell fires, the base controller prepends "🔔" to the window title, and the sidebar displays `tab.title` directly (not a pwd-derived display title), so the bell emoji appears naturally in the sidebar row.
 
-Why: Horizontal tabs display `window.title` (which includes "🔔" via `BaseTerminalController.computeTitle`). Vertical tabs display `tabDisplayTitle` derived from `pwd` (folder name), bypassing `tab.title` entirely. So the title-based bell approach is invisible in the sidebar.
+Key fix: `verticalTabSelectionDidChange` calls `focusedSurfaceDidChange(to:)` instead of setting `focusedSurface` directly, which re-establishes the `$title`+`$bell` Combine subscriptions on the newly selected surface. Without this, the title subscription stayed on the old surface after tab switches.
 
-How it works:
-- `TerminalController` observes `ghosttyBellDidRing` via `NotificationCenter` (one observer, O(1) per event)
-- When a bell fires on a background tab's surface, `onBellDidRing` finds the owning tab and sets `hasBell = true` on the model
-- The sidebar view shows an orange bell icon when `tab.hasBell` is true
-- `hasBell` is cleared when the user switches to that tab (`verticalTabSelectionDidChange`)
-- `updateBell` has a no-op guard to skip unnecessary `@Published` mutations
-
-This replaces an earlier `refreshVerticalTabBellTracking` approach that rebuilt Combine subscriptions across all surfaces on every state change, causing O(N^2) main-thread churn and eventual terminal degradation under heavy load.
+This replaced an earlier `refreshVerticalTabBellTracking` approach that rebuilt Combine subscriptions across all surfaces on every state change, causing O(N^2) main-thread churn and eventual terminal degradation under heavy load.
 
 ## Known Limitations
 
