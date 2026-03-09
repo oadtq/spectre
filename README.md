@@ -3,6 +3,14 @@
 A MacOS terminal emulator for managing your CLI Agents easily across projects.  
 [About](#about) · [Building](#building) · [Development](#development) · [Distribution](#distribution) · [Contributing](#contributing)
 
+<p align="center">
+  <img src="images/app-demo.png" alt="Spectre terminal with project sidebar, DROID AI integration, and vertical tabs for organizing CLI agents" width="900">
+</p>
+
+<p align="center">
+  <em><strong>One terminal.</strong> All your projects. Orchestrate multiple CLI agents—all at once.</em>
+</p>
+
 ## About
 
 Spectre is a fork of [Ghostty](https://ghostty.org) that is designed for the AI era. While Ghostty focuses on being a fast, feature-rich terminal emulator, Spectre takes a different approach—organizing your terminal sessions around **projects** and **agent sessions** using a vertical tab interface with grouping capabilities.
