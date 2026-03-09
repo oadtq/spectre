@@ -241,17 +241,6 @@ struct VerticalTabRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // Tab color indicator
-            if let color = tab.tabColor.displayColor {
-                Circle()
-                    .fill(Color(nsColor: color))
-                    .frame(width: 10, height: 10)
-            } else {
-                Circle()
-                    .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
-                    .frame(width: 10, height: 10)
-            }
-
             // Tab title
             Text(tabDisplayTitle)
                 .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
@@ -262,6 +251,14 @@ struct VerticalTabRow: View {
                 .id(tab.id.uuidString)
 
             Spacer(minLength: 0)
+
+            // Bell indicator for background tabs
+            if tab.hasBell {
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.orange)
+                    .accessibilityLabel("Notification")
+            }
 
             // Close button (visible on hover or when selected)
             Button(action: onClose) {

@@ -159,6 +159,12 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             name: .ghosttyCreateTabGroup,
             object: nil
         )
+        center.addObserver(
+            self,
+            selector: #selector(onBellDidRing(_:)),
+            name: .ghosttyBellDidRing,
+            object: nil
+        )
     }
 
     required init?(coder: NSCoder) {
@@ -1699,6 +1705,21 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         verticalTabModel.moveTabToNewGroup(tabId: selectedId, basePath: basePath)
     }
 
+    @objc private func onBellDidRing(_ notification: SwiftUI.Notification) {
+        guard isVerticalTabMode, let verticalTabModel else { return }
+        guard let surfaceView = notification.object as? Ghostty.SurfaceView else { return }
+
+        // Find which vertical tab contains this surface and mark it
+        for tab in verticalTabModel.tabs {
+            if tab.surfaceTree.contains(surfaceView) {
+                // Skip the currently selected tab — user is already looking at it
+                if tab.id == verticalTabModel.selectedTabId { return }
+                verticalTabModel.updateBell(for: tab.id, isActive: true)
+                return
+            }
+        }
+    }
+
     @objc private func onResetWindowSize(notification: SwiftUI.Notification) {
         guard let target = notification.object as? Ghostty.SurfaceView else { return }
         guard surfaceTree.contains(target) else { return }
@@ -1821,12 +1842,18 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // Save current tab state
         saveCurrentVerticalTabState()
 
+        // Clear bell indicator on the tab we're switching to
+        verticalTabModel.updateBell(for: newId, isActive: false)
+
         // Switch to the new tab's surface tree
         isRestoringSurfaceTreeFromModel = true
         self.surfaceTree = tab.surfaceTree
         isRestoringSurfaceTreeFromModel = false
         if let focused = tab.focusedSurface ?? tab.surfaceTree.first {
-            self.focusedSurface = focused
+            // Re-establish title+bell Combine subscriptions on the new surface.
+            // Setting focusedSurface directly only calls syncFocusToSurfaceTree(),
+            // it does NOT re-subscribe to $title/$bell for the window title.
+            focusedSurfaceDidChange(to: focused)
             DispatchQueue.main.async {
                 Ghostty.moveFocus(to: focused, from: nil)
             }
