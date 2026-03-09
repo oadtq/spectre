@@ -865,7 +865,14 @@ class AppDelegate: NSObject,
         case "never": UserDefaults.standard.setValue(false, forKey: "NSQuitAlwaysKeepsWindows")
         case "always": UserDefaults.standard.setValue(true, forKey: "NSQuitAlwaysKeepsWindows")
         case "default": fallthrough
-        default: UserDefaults.standard.removeObject(forKey: "NSQuitAlwaysKeepsWindows")
+        default:
+            // For vertical-tabs mode, auto-enable window state saving so users
+            // don't need to set window-save-state = always explicitly.
+            if config.macosTitlebarStyle == "vertical-tabs" {
+                UserDefaults.standard.setValue(true, forKey: "NSQuitAlwaysKeepsWindows")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "NSQuitAlwaysKeepsWindows")
+            }
         }
 
         // Sync our auto-update settings. If SUEnableAutomaticChecks (in our Info.plist) is
